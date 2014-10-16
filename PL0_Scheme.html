@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Functional PL0</title>
+    </head>
+    <body>
+        <textarea id="input" rows="20" cols="80"></textarea>
+        <br />
+        <button id="btnTokenize">Tokenize</button><button id="btnParse">Parse</button>
+        <pre id="output"></pre>
+        <script src="tokenizer.js"></script>
+        <script src="parser.js"></script>
+        <script>
+            var input = document.getElementById("input"), output = document.getElementById("output");
+            document.getElementById("btnTokenize").onclick = function () {
+                var text = input.value;
+                var tokens;
+                try{
+                    tokens = tokenize(text);
+                } catch (e) {
+                    tokens = {error: e.message};
+                }
+                output.innerHTML = JSON.stringify(tokens, null, "    ");
+            }
+
+            document.getElementById("btnParse").onclick = function () {
+                var text = input.value;
+                var ast = parse(tokenize(text));
+                output.innerHTML = JSON.stringify(ast, null, "    ");
+            }
+        </script>
+    </body>
+</html>
