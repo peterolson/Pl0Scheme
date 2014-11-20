@@ -1,33 +1,60 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Functional PL0</title>
+        <title>PL0 with Scheme Syntax</title>
+        <style>
+            #error {
+                font-weight: bold;
+                color: red;
+            }
+        </style>
     </head>
     <body>
         <textarea id="input" rows="20" cols="80"></textarea>
         <br />
-        <button id="btnTokenize">Tokenize</button><button id="btnParse">Parse</button>
+        <button id="btnTokenize">Tokenize</button><button id="btnParse">Parse</button><button id="btnCompile">Compile</button><br />
+        <span id="error"></span>
         <pre id="output"></pre>
         <script src="tokenizer.js"></script>
         <script src="parser.js"></script>
+        <script src="transformer.js"></script>
         <script>
             var input = document.getElementById("input"), output = document.getElementById("output");
-            document.getElementById("btnTokenize").onclick = function () {
-                var text = input.value;
-                var tokens;
-                try{
-                    tokens = tokenize(text);
-                } catch (e) {
-                    tokens = {error: e.message};
-                }
-                output.innerHTML = JSON.stringify(tokens, null, "    ");
+
+            function displayError(error) {
+                document.getElementById("error").innerText = error;
+            }
+            function clearErrors() {
+                document.getElementById("error").innerText = "";
             }
 
-            document.getElementById("btnParse").onclick = function () {
-                var text = input.value;
-                var ast = parse(tokenize(text));
-                output.innerHTML = JSON.stringify(ast, null, "    ");
+            function buttonAction(fn) {
+                return function () {
+                    clearErrors();
+                    var text = input.value;
+                    try {
+                        output.innerHTML = fn(text);
+                    } catch (e) {
+                        var content = "";
+                        if (e.content) {
+                            content = " " + text.slice(e.content.start, e.content.start + e.content.length);
+                        }
+                        displayError(e.message + content);
+                    }
+                }
             }
+
+            document.getElementById("btnTokenize").onclick = buttonAction(function (text) {
+                return JSON.stringify(tokenize(text), null, "    ");
+            });
+
+            document.getElementById("btnParse").onclick = buttonAction(function (text) {
+                return JSON.stringify(parse(tokenize(text)), null, "    ");
+            });
+
+            document.getElementById("btnCompile").onclick = buttonAction(function (text) {
+                return transform(parse(tokenize(text)), PL_0);
+            });
         </script>
     </body>
 </html>

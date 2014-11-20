@@ -1,23 +1,126 @@
-VAR x, squ;
- 
-PROCEDURE square;
-BEGIN
-   squ:= x * x
-END;
- 
-BEGIN
-   x := 1;
-   WHILE x <= 10 DO
-   BEGIN
-      CALL square;
-      ! squ;
-      x := x + 1
-   END
-END.
+#### CROSSHAIR ####
 
-(var x squ)
-(procedure square
-	((:= x 1)
-	 (while (<= x 10)
-		((square)
-		 (:= x (+ x 1))))))
+(while (= 1 1)
+  (wait 10)
+  (cvclear)
+  (if (> cvx -1)
+    (cvline cvx 0 cvx 300)
+    (cvline 0 cvy 500 cvy)
+    (cvline 0 0 cvx cvy)
+    (cvline 0 300 cvx cvy)
+    (cvline 500 0 cvx cvy)
+    (cvline 500 300 cvx cvy)
+    (cvball cvx cvy 20)))
+    
+#### DIRECTION ####
+
+(const 
+  unknown 0
+  north 1
+  east 2
+  south 3
+  west 4)
+
+(var current)
+
+(procedure direction
+  (var x y)
+  (:= current unknown)
+  (if (> cvx -1)
+    (:= x (- cvx 250))
+    (:= y (- 150 cvy))
+    (if (< (- x) y)
+      (if (< x y) (:= current north))
+      (if (> x y) (:= current east)))
+    (if (> (- x) y)
+      (if (> x y) (:= current south))
+      (if (< x y) (:= current west)))))
+
+(while (= 1 1)
+  (wait 10)
+  (cvclear)
+  (cvline 100 0 400 300)
+  (cvline 100 300 400 0)
+  (direction)
+  (if (= current unknown) (cvball 250 150 20))
+  (if (= current north) (cvball 250 75 20))
+  (if (= current east) (cvball 375 150 20))
+  (if (= current south) (cvball 250 225 20))
+  (if (= current west) (cvball 125 150 20))
+  (if (> cvx 1)
+    (cvline cvx 0 cvx 300)
+    (cvline 0 cvy 500 cvy)))
+    
+#### SNAKE ####
+
+(const
+  qlength 20
+  unknown 0
+  north 1
+  east 2
+  south 3
+  west 4)
+
+(var qx{qlength} qy{qlength} tail head current lastx lasty newx newy)
+
+(procedure direction
+  (var x y)
+  (:= current unknown)
+  (if (> cvx -1)
+    (:= x (- cvx 250))
+    (:= y (- 150 cvy))
+    (if (< (- x) y)
+      (if (< x y) (:= current north))
+      (if (> x y) (:= current east)))
+    (if (> (- x) y)
+      (if (> x y) (:= current south))
+      (if (< x y) (:= current west)))))
+
+(procedure (enqueue x y)
+  (:= qx{tail} x)
+  (:= qy{tail} y)
+  (:= tail (+ tail 1))
+  (if (= tail qlength)
+    (:= tail 0))
+  (if (= tail head)
+    (:= head (+ head 1))
+    (if (= head qlength) (:= head 0))))
+
+(procedure draw
+  (var i)
+  (if (!= tail head)
+    (:= i head)
+    (while (!= i tail)
+      (cvball qx{i} qy{i} 7)
+      (:= i (+ i 1))
+      (if (= i qlength) (:= i 0)))))
+
+(while (= 1 1)
+  (cvclear)
+  (while (< cvx 0) (wait 10))
+  (:= tail 0)
+  (:= head 0)
+  (:= lastx 250)
+  (:= lasty 150)
+  (enqueue lastx lasty)
+  (while (> cvx -1)
+    (cvclear)
+    (cvline 100 0 400 300)
+    (cvline 100 300 400 0)
+    (direction)
+    (if (!= current unknown)
+      (:= newx lastx)
+      (:= newy lasty)
+      (if (= current north) (:= newy (- lasty 10)))
+      (if (= current east) (:= newx (+ lastx 10)))
+      (if (= current south) (:= newy (+ lasty 10)))
+      (if (= current west) (:= newx (- lastx 10)))
+      (if (> newx 0)
+        (if (< newx 500)
+          (if (> newy 0)
+            (if (< newy 300)
+              (:= lastx newx)
+              (:= lasty newy)
+              (enqueue lastx lasty))))))
+    (draw)
+    (wait 200)))

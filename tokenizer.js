@@ -26,6 +26,8 @@ var tokenize = function (text) {
             create("op", "if"),
             create("op", "while"),
             create("op", "call"),
+            create("identifier", /[A-Za-z]+/),
+            create("number", /-?[0-9]+/),
             create("op", ":="),
             create("op", "<="),
             create("op", ">="),
@@ -36,9 +38,7 @@ var tokenize = function (text) {
             create("op", "="),
             create("op", "!="),
             create("op", "<"),
-            create("op", ">"),
-            create("identifier", /[A-Za-z]+/),
-            create("number", /[0-9]+/)
+            create("op", ">")
         ];
         for (var i = 0; i < tokens.length; i++) {
             var token = tokens[i];

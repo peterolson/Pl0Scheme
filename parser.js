@@ -36,6 +36,7 @@ var parse = function (tokens) {
     }
 
     function isOp(token, val) {
+        if (!token) return false;
         return token.name === "op" && token.value === val;
     }
 
@@ -73,6 +74,19 @@ var parse = function (tokens) {
                 next();
             }
             else if (matchesType(["("])) arguments.push(expression());
+            else if (matchesType(["{"])) {
+                if (arguments[arguments.length - 1].name !== "identifier") {
+                    error("Indexes can only appear directly after identifiers.");
+                }
+                current().name = current().value = "(";
+                var i;
+                for (i = index; i < tokens.length; i++) {
+                    if (tokens[i].name === "}") break;
+                }
+                if (tokens[i].name !== "}") error("Could not find matching '}'.");
+                tokens[i].name = tokens[i].value = ")";
+                tokens[index - 1].index = expression();
+            }
             else error(current(), "Not a valid expression part.");
         }
         var end = current().start + 1;
@@ -94,22 +108,35 @@ var parse = function (tokens) {
     function block(expr) {
         var args = expr.arguments;
         if (isOp(args[0], "const")) {
-            if (args.length > 3) error(args, "Too many values passed into const binding.");
-            var name = args[1], value = args[2];
-            if (!isIdentifier(name)) error(name, "Constant name must be an identifier.");
-            if (!isNumber(value)) error(value, "Constant value must be a number.");
-            return create("const", { name: name.value, value: value.value }, expr);
+            var names = [], values = [];
+            for (var i = 1; i < args.length; i += 2) {
+                var name = args[i], value = args[i + 1];
+                if (!isIdentifier(name)) error(name, "Constant name must be an identifier.");
+                if (!isNumber(value)) error(value, "Constant value must be a number.");
+                names.push(name.value);
+                values.push(value.value);
+            }
+            return create("const", { names: names, values: values }, expr);
         }
         if (isOp(args[0], "var")) {
             var names = [];
             for (var i = 1; i < args.length; i++) {
                 if (!isIdentifier(args[i])) error(args[i], "Variable name must be an identifier.");
-                names.push(args[i].value);
+                if (args[i].index) args[i].index = term(args[i].index);
+                names.push(args[i]);
             }
             return create("var", names, expr);
         }
         if (isOp(args[0], "procedure")) {
-            var name = args[1];
+            var name = args[1], arguments = [];
+            if (isExpression(name)) {
+                var names = name.arguments;
+                name = names[0];
+                arguments = names.slice(1).map(function (name) {
+                    if (!isIdentifier(name)) error(name, "Procedure parameter must be an identifier.");
+                    return name.value;
+                });
+            }
             if(!isIdentifier(name)) error(name, "Procedure name must be an identifier.");
             var declarations = [], statements = [];
             for (var i = 2; i < args.length; i++) {
@@ -121,7 +148,7 @@ var parse = function (tokens) {
                 else
                     statements.push(statement(arg));
             }
-            return create("procedure", { declarations: declarations, statements: statements }, expr);
+            return create("procedure", { name: name.value, arguments: arguments, declarations: declarations, statements: statements }, expr);
         }
         return statement(expr);
     }
@@ -132,22 +159,22 @@ var parse = function (tokens) {
         if (isOp(args[0], ":=")) {
             if (args.length !== 3) error(expr, "Variables must be assigned to exactly one value.");
             if (!isIdentifier(args[1])) error(args[1], "Variable name must be an identifier.");
-            return create("assignment", { name: args[1].value, value: term(args[2]) }, expr);
+            if (args[1].index) args[1].index = term(args[1].index);
+            return create("assignment", { name: args[1], value: term(args[2]) }, expr);
         }
         if (isOp(args[0], "if")) {
-            if (args.length !== 3) error(expr, "If statements must have one condition and one set of statements.");
-            return create("if", { condition: condition(args[1]), statement: statement(args[2]) }, expr);
+            if (args.length < 3) error(expr, "If statements must have one condition and one set of statements.");
+            return create("if", { condition: condition(args[1]), statements: args.slice(2).map(statement) }, expr);
         }
         if (isOp(args[0], "while")) {
-            if (args.length !== 3) error(expr, "While statements must have one condition and one set of statements.");
-            return create("while", { condition: condition(args[1]), statement: statement(args[2]) }, expr);
+            if (args.length < 3) error(expr, "While statements must have one condition and one set of statements.");
+            return create("while", { condition: condition(args[1]), statements: args.slice(2).map(statement) }, expr);
         }
         if (args.length === 0) {
             return create("empty", undefined, expr);
         }
-        if (args.length === 1) {
-            if (!isIdentifier(args[0])) error(args[0], "Procedure calls must be an identifier.");
-            return create("call", args[0].value, expr);
+        if (isIdentifier(args[0])) {
+            return create("call", { name: args[0].value, arguments: args.slice(1).map(term) }, expr);
         }
         var statements = [];
         for (var i = 0; i < args.length; i++) {
@@ -157,11 +184,12 @@ var parse = function (tokens) {
     }
 
     function term(expr) {
+        if (expr.index) expr.index = term(expr.index);
         if (expr.name === "identifier" || expr.name === "number") return expr;
         if (expr.name !== "expression") error(expr, "Terms must be an operator followed by two operands.");
         var args = expr.arguments;
         if (args.length === 0) error(expr, "Terms must be an operator followed by two operands.");
-        if (args.length === 1 && args[0].name === "expression") return term(args[0]);
+        if (args.length === 1) return term(args[0]);
         if(!isTermOperator(args[0])) error(args[0], "A term operator must be one of " + termOperators.join(", ") + ".");
         var arguments = args.slice(1).map(term);
         return create("term", { operation: args[0].value, arguments: arguments }, expr);
