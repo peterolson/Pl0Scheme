@@ -1,4 +1,4 @@
-Pl/0-Scheme
+PL/0-Scheme
 =========
 
 A programming language based on [PL/0 by Niklaus Wirth](http://en.wikipedia.org/wiki/PL/0), but with Scheme-like syntax.
